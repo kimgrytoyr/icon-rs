@@ -12,8 +12,8 @@ pub struct Cli {
     #[clap(long = "fetch-collections", action=ArgAction::SetTrue)]
     pub fetch_collections: bool,
 
-    #[clap(long = "preview")]
-    pub preview: Option<String>,
+    #[clap(long = "preview", action=ArgAction::SetTrue)]
+    pub preview: bool,
 
     #[clap(short = 'v', long = "verbose", action=ArgAction::SetTrue)]
     pub verbose: bool,

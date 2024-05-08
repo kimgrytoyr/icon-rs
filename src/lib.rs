@@ -30,9 +30,9 @@ pub fn get_icon_xml(icon_identifier: &str) -> Result<String, Box<dyn Error>> {
     }
 }
 
-pub fn preview(icon_identifier: &str) {
+pub fn preview(icon_identifier: &str) -> Result<(), Box<dyn Error>> {
     let mut file = Vec::new();
-    let xml = get_icon_xml(icon_identifier).unwrap();
+    let xml = get_icon_xml(icon_identifier)?;
 
     let header = r#"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" color="white" viewBox="0 0 24 24">"#;
     let footer = r#"</svg>"#;
@@ -66,6 +66,7 @@ pub fn preview(icon_identifier: &str) {
     };
 
     print_from_file("/tmp/icon-rs-preview.png", &conf).expect("Image printing failed.");
+    Ok(())
 }
 
 pub fn get_home_dir() -> PathBuf {
@@ -252,7 +253,11 @@ pub fn generate_cached_icons() -> Result<Vec<String>, Box<dyn Error>> {
     get_cached_icons()
 }
 
-pub fn query(query: &Option<String>, prefix: &Option<String>) -> Result<(), Box<dyn Error>> {
+pub fn query(
+    query: &Option<String>,
+    prefix: &Option<String>,
+    preview_inline: bool,
+) -> Result<(), Box<dyn Error>> {
     let icons = get_cached_icons()?;
 
     let found = icons.iter().filter(|i| {
@@ -271,6 +276,10 @@ pub fn query(query: &Option<String>, prefix: &Option<String>) -> Result<(), Box<
 
     for f in found {
         println!("{}", f);
+        if preview_inline {
+            preview(f)?;
+            println!("");
+        }
     }
 
     info!("Searched {} icons.", icons.len());
