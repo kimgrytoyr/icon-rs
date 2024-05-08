@@ -1,8 +1,11 @@
 use crate::enums::Collection;
 use log::info;
+use resvg::tiny_skia;
+use resvg::usvg::{self, fontdb};
 use std::collections::HashMap;
 use std::error::Error;
 use std::io::copy;
+use viuer::{print_from_file, Config};
 
 use std::fs::{create_dir_all, File};
 use std::io::{BufRead, BufReader, BufWriter, Write};
@@ -13,6 +16,57 @@ use home::home_dir;
 use log::error;
 
 mod enums;
+
+pub fn get_icon_xml(icon_identifier: &str) -> Result<String, Box<dyn Error>> {
+    let Some((collection_id, icon_identifier)) = icon_identifier.split_once(':') else {
+        todo!();
+    };
+
+    let collection = get_collection(collection_id)?;
+    if let Some(icon) = collection.icons.get(icon_identifier) {
+        Ok(icon.body.clone())
+    } else {
+        Err("Could not find icon.".into())
+    }
+}
+
+pub fn preview(icon_identifier: &str) {
+    let mut file = Vec::new();
+    let xml = get_icon_xml(icon_identifier).unwrap();
+
+    let header = r#"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" color="white" viewBox="0 0 24 24">"#;
+    let footer = r#"</svg>"#;
+
+    let _ = file.write_all(header.as_bytes());
+    let _ = file.write_all(xml.as_bytes());
+    let _ = file.write_all(footer.as_bytes());
+
+    let in_file = file.as_slice();
+    let out_file = "/tmp/icon-rs-preview.png";
+
+    let tree = {
+        let opt = usvg::Options::default();
+        let mut fontdb = fontdb::Database::new();
+        fontdb.load_system_fonts();
+        usvg::Tree::from_data(&in_file, &opt, &fontdb).unwrap()
+    };
+
+    let pixmap_size = tree.size().to_int_size();
+    let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
+    resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+    pixmap.save_png(out_file).unwrap();
+
+    let conf = Config {
+        absolute_offset: false,
+        x: 1,
+        y: 0,
+        width: Some(6),
+        restore_cursor: false,
+        ..Default::default()
+    };
+
+    print_from_file("/tmp/icon-rs-preview.png", &conf).expect("Image printing failed.");
+}
 
 pub fn get_home_dir() -> PathBuf {
     if let Some(path) = home_dir() {
@@ -198,11 +252,15 @@ pub fn generate_cached_icons() -> Result<Vec<String>, Box<dyn Error>> {
     get_cached_icons()
 }
 
-pub fn query(query: &str, prefix: &Option<String>) -> Result<(), Box<dyn Error>> {
+pub fn query(query: &Option<String>, prefix: &Option<String>) -> Result<(), Box<dyn Error>> {
     let icons = get_cached_icons()?;
 
     let found = icons.iter().filter(|i| {
-        let matching = i.contains(&query);
+        let matching = if let Some(query) = query {
+            i.contains(query)
+        } else {
+            true
+        };
 
         if let Some(prefix) = &prefix {
             matching && i.starts_with(&format!("{}:", prefix))

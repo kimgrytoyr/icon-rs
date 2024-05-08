@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, process::exit};
 
 use clap::Parser;
 use icon::generate_cached_icons;
@@ -26,6 +26,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         ColorChoice::Auto,
     )])?;
 
+    if let Some(icon_identifier) = args.preview {
+        icon::preview(&icon_identifier);
+        exit(0);
+    }
+
     if args.fetch_collections {
         icon::fetch_collections(true)?;
     }
@@ -34,8 +39,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         generate_cached_icons()?;
     }
 
-    if let Some(query) = args.query {
-        icon::query(&query, &args.prefix)?;
+    if args.query.is_some() || args.prefix.is_some() {
+        icon::query(&args.query, &args.prefix)?;
     }
 
     Ok(())

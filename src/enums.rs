@@ -1,7 +1,12 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Icon {
+    pub body: String,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -12,7 +17,7 @@ pub struct IconCollection {
     pub suffixes: Option<HashMap<String, String>>,
     pub last_modified: usize,
     pub info: Collection,
-    pub icons: HashMap<String, HashMap<String, Value>>,
+    pub icons: HashMap<String, Icon>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
