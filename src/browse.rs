@@ -15,7 +15,7 @@ use icon::{preview, query};
 use crate::cli::Cli;
 
 pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
-    let (cols, rows) = size()?;
+    let (cols, _rows) = size()?;
 
     terminal::enable_raw_mode()?;
 
