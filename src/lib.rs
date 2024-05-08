@@ -68,7 +68,7 @@ pub fn preview(icon_identifier: &str) -> Result<(), Box<dyn Error>> {
 
     let conf = Config {
         absolute_offset: false,
-        x: 1,
+        x: 0,
         y: 0,
         width: Some(6),
         restore_cursor: false,
@@ -268,32 +268,36 @@ pub fn query(
     query: &Option<String>,
     prefix: &Option<String>,
     preview_inline: bool,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<Vec<String>, Box<dyn Error>> {
     let icons = get_cached_icons()?;
 
-    let found = icons.iter().filter(|i| {
-        let matching = if let Some(query) = query {
-            i.contains(query)
-        } else {
-            true
-        };
+    let found: Vec<String> = icons
+        .iter()
+        .filter(|i| {
+            let matching = if let Some(query) = query {
+                i.contains(query)
+            } else {
+                true
+            };
 
-        if let Some(prefix) = &prefix {
-            matching && i.starts_with(&format!("{}:", prefix))
-        } else {
-            matching
-        }
-    });
+            if let Some(prefix) = &prefix {
+                matching && i.starts_with(&format!("{}:", prefix))
+            } else {
+                matching
+            }
+        })
+        .map(String::from)
+        .collect();
 
-    for f in found {
-        println!("{}", f);
-        if preview_inline {
+    if preview_inline {
+        for f in &found {
             preview(f)?;
+            println!("{}", f);
             println!("");
         }
     }
 
     info!("Searched {} icons.", icons.len());
 
-    Ok(())
+    Ok(found)
 }

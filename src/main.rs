@@ -7,6 +7,7 @@ use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, Terminal
 
 use crate::cli::Cli;
 
+mod browse;
 mod cli;
 mod enums;
 
@@ -35,8 +36,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         generate_cached_icons()?;
     }
 
-    if args.query.is_some() || args.prefix.is_some() {
-        icon::query(&args.query, &args.prefix, args.preview)?;
+    if args.browse {
+        browse::browse(&args)?;
+    }
+
+    if (args.query.is_some() || args.prefix.is_some()) && !args.browse {
+        let results = icon::query(&args.query, &args.prefix, args.preview && !args.browse)?;
+
+        if !args.preview {
+            for r in &results {
+                println!("{}", r);
+            }
+        }
     }
 
     Ok(())

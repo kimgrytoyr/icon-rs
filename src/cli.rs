@@ -15,6 +15,9 @@ pub struct Cli {
     #[clap(long = "preview", action=ArgAction::SetTrue)]
     pub preview: bool,
 
+    #[clap(short = 'b', long = "browse", action=ArgAction::SetTrue)]
+    pub browse: bool,
+
     #[clap(short = 'v', long = "verbose", action=ArgAction::SetTrue)]
     pub verbose: bool,
 
