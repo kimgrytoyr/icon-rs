@@ -17,14 +17,18 @@ use log::error;
 
 mod enums;
 
-pub fn get_icon_xml(icon_identifier: &str) -> Result<String, Box<dyn Error>> {
+pub fn get_icon_xml(icon_identifier: &str) -> Result<(usize, usize, String), Box<dyn Error>> {
     let Some((collection_id, icon_identifier)) = icon_identifier.split_once(':') else {
         todo!();
     };
 
     let collection = get_collection(collection_id)?;
     if let Some(icon) = collection.icons.get(icon_identifier) {
-        Ok(icon.body.clone())
+        Ok((
+            collection.width.unwrap_or(16),
+            collection.height.unwrap_or(16),
+            icon.body.clone(),
+        ))
     } else {
         Err("Could not find icon.".into())
     }
@@ -32,10 +36,16 @@ pub fn get_icon_xml(icon_identifier: &str) -> Result<String, Box<dyn Error>> {
 
 pub fn preview(icon_identifier: &str) -> Result<(), Box<dyn Error>> {
     let mut file = Vec::new();
-    let xml = get_icon_xml(icon_identifier)?;
 
-    let header = r#"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" color="white" viewBox="0 0 24 24">"#;
+    let (width, height, xml) = get_icon_xml(icon_identifier)?;
+
+    let header = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" color="white" viewBox="0 0 {} {}">"#,
+        width, height
+    );
     let footer = r#"</svg>"#;
+
+    let xml = xml.replace("stroke=\"#000\"", "stroke=\"#fff\"");
 
     let _ = file.write_all(header.as_bytes());
     let _ = file.write_all(xml.as_bytes());
@@ -66,6 +76,7 @@ pub fn preview(icon_identifier: &str) -> Result<(), Box<dyn Error>> {
     };
 
     print_from_file("/tmp/icon-rs-preview.png", &conf).expect("Image printing failed.");
+
     Ok(())
 }
 
