@@ -3,7 +3,7 @@ use std::error::Error;
 use clap::Parser;
 use icon::generate_cached_icons;
 use log::LevelFilter;
-use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode};
+use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, TerminalMode};
 
 use crate::cli::Cli;
 
@@ -14,14 +14,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::parse();
 
     let log_level = if args.verbose {
-        LevelFilter::Info
+        LevelFilter::Debug
     } else {
         LevelFilter::Warn
     };
+    let config = ConfigBuilder::new().set_time_format_rfc3339().build();
 
     CombinedLogger::init(vec![TermLogger::new(
         log_level,
-        Config::default(),
+        config,
         TerminalMode::Mixed,
         ColorChoice::Auto,
     )])?;
