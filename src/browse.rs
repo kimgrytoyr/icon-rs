@@ -101,10 +101,22 @@ pub fn browse(
 
     let mut selected: Option<String> = None;
     let mut search_mode = false;
-    let mut search_string = if let Some(q) = &args.query {
+    let orig_query = if let Some(q) = &args.query {
         q.to_owned()
     } else {
         String::new()
+    };
+
+    let orig_prefix = if let Some(p) = &args.prefix {
+        p.to_owned()
+    } else {
+        String::new()
+    };
+
+    let mut search_string = if orig_prefix.is_empty() {
+        orig_query
+    } else {
+        format!("{}:{}", orig_prefix, orig_query)
     };
 
     while !quit {
@@ -122,6 +134,8 @@ pub fn browse(
                             quit = true;
                         } else {
                             search_mode = false;
+                            selected_index = 0;
+
                             let (p, q) = if search_string.contains(":") {
                                 let (p, q) = search_string.split_once(":").unwrap();
 
@@ -155,7 +169,6 @@ pub fn browse(
                     }
                     KeyCode::Esc => {
                         search_mode = false;
-                        search_string = "".to_string();
                     }
                     KeyCode::Up => {
                         do_move(
