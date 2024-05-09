@@ -5,8 +5,9 @@ use std::{
 };
 
 use crossterm::{
-    cursor::MoveTo,
+    cursor::{Hide, MoveTo},
     event::{poll, read, Event, KeyCode},
+    style::{Color, Print, SetBackgroundColor, SetForegroundColor},
     terminal::{self, size, Clear, ClearType},
     QueueableCommand,
 };
@@ -15,16 +16,16 @@ use icon::{preview, query};
 use crate::cli::Cli;
 
 pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
-    let (cols, _rows) = size()?;
+    let (cols, rows) = size()?;
 
     terminal::enable_raw_mode()?;
 
     let mut stdout = stdout();
-    // stdout.queue(Hide)?;
+    stdout.queue(Hide)?;
     stdout.queue(Clear(ClearType::All)).unwrap();
 
-    let _icons_per_row = cols / 8;
-    let mut selected_index = 0;
+    let mut previously_selected_index: Option<u16> = None;
+    let mut selected_index: u16 = 0;
 
     let mut query_results = query(&args.query, &args.prefix, false)?;
 
@@ -41,10 +42,8 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
             if col + 18 > cols {
                 col = 2;
                 row += 4;
-                (col, row)
             } else {
                 col += 8;
-                (col, row)
             };
         }
     }
@@ -63,21 +62,25 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
                     }
                     KeyCode::Up => {
                         if selected_index + 1 > cols / 8 {
+                            previously_selected_index = Some(selected_index);
                             selected_index -= cols / 8;
                         }
                     }
                     KeyCode::Down => {
                         if selected_index < query_results.len() as u16 - cols / 8 {
+                            previously_selected_index = Some(selected_index);
                             selected_index += cols / 8;
                         }
                     }
                     KeyCode::Left => {
                         if selected_index > 0 {
+                            previously_selected_index = Some(selected_index);
                             selected_index -= 1;
                         }
                     }
                     KeyCode::Right => {
                         if selected_index < query_results.len() as u16 - 1 {
+                            previously_selected_index = Some(selected_index);
                             selected_index += 1;
                         }
                     }
@@ -88,24 +91,28 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
                         if c == 'j' {
                             // Move down
                             if selected_index < query_results.len() as u16 - cols / 8 {
+                                previously_selected_index = Some(selected_index);
                                 selected_index += cols / 8;
                             }
                         }
                         if c == 'k' {
                             // Move up
                             if selected_index + 1 > cols / 8 {
+                                previously_selected_index = Some(selected_index);
                                 selected_index -= cols / 8;
                             }
                         }
                         if c == 'h' {
                             // Move left
                             if selected_index > 0 {
+                                previously_selected_index = Some(selected_index);
                                 selected_index -= 1;
                             }
                         }
                         if c == 'l' {
                             // Move right
                             if selected_index < query_results.len() as u16 - 1 {
+                                previously_selected_index = Some(selected_index);
                                 selected_index += 1;
                             }
                         }
@@ -123,8 +130,30 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
 
         for i in 0..num_results {
             let i = i as u16;
+
+            if let Some(psi) = previously_selected_index {
+                if i == psi {
+                    stdout.queue(MoveTo(col as u16, row))?;
+                    stdout.queue(Clear(ClearType::UntilNewLine))?;
+                    stdout.queue(MoveTo(col as u16, row + 1))?;
+                    stdout.queue(Clear(ClearType::UntilNewLine))?;
+                    stdout.queue(MoveTo(col as u16, row + 2))?;
+                    stdout.queue(Clear(ClearType::UntilNewLine))?;
+                    stdout.flush().unwrap();
+                }
+            }
+
             if i == selected_index {
+                stdout.queue(MoveTo(col as u16, row))?;
+                stdout.queue(SetForegroundColor(Color::White))?;
+                stdout.queue(SetBackgroundColor(Color::Blue))?;
+                stdout.queue(Print(format!("      ")))?;
+                stdout.queue(MoveTo(col as u16, row + 1))?;
+                stdout.queue(Print(format!("      ")))?;
                 stdout.queue(MoveTo(col as u16, row + 2))?;
+                stdout.queue(Print(format!("      ")))?;
+                stdout.queue(SetForegroundColor(Color::White))?;
+                stdout.queue(SetBackgroundColor(Color::Black))?;
             }
 
             if col + 18 > cols {
@@ -136,6 +165,9 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
                 (col, row)
             };
         }
+
+        stdout.queue(MoveTo(1, rows - 1))?;
+        stdout.queue(Print(query_results[selected_index as usize].clone()))?;
 
         stdout.flush().unwrap();
         std::thread::sleep(std::time::Duration::from_millis(33));
