@@ -167,6 +167,7 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
         }
 
         stdout.queue(MoveTo(1, rows - 1))?;
+        stdout.queue(Clear(ClearType::CurrentLine))?;
         stdout.queue(Print(query_results[selected_index as usize].clone()))?;
 
         stdout.flush().unwrap();
