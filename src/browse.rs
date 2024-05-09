@@ -134,7 +134,6 @@ pub fn browse(
                             quit = true;
                         } else {
                             search_mode = false;
-                            selected_index = 0;
 
                             let (p, q) = if search_string.contains(":") {
                                 let (p, q) = search_string.split_once(":").unwrap();
@@ -143,11 +142,13 @@ pub fn browse(
                             } else {
                                 (None, Some(search_string.to_string()))
                             };
-                            query_results = query(&q, &p, false)?;
+                            let mut tmp_query_results = query(&q, &p, false)?;
 
-                            query_results.truncate(100);
+                            if !tmp_query_results.is_empty() {
+                                tmp_query_results.truncate(100);
+                                query_results = tmp_query_results;
 
-                            if !query_results.is_empty() {
+                                selected_index = 0;
                                 stdout.queue(Clear(ClearType::All))?;
 
                                 let mut row = 1;
@@ -321,15 +322,17 @@ pub fn browse(
             stdout.queue(Print(format!("Per row: {}", (cols - 4) / 8)))?;
         }
 
+        stdout.queue(MoveTo(1, rows - 1))?;
+        stdout.queue(Clear(ClearType::CurrentLine))?;
+
         if search_mode {
-            stdout.queue(MoveTo(1, rows - 1))?;
-            stdout.queue(Clear(ClearType::CurrentLine))?;
             stdout.queue(Print(format!("Enter search: {}", search_string)))?;
-        } else {
-            stdout.queue(MoveTo(1, rows - 1))?;
-            stdout.queue(Clear(ClearType::CurrentLine))?;
+        } else if !query_results.is_empty() {
             stdout.queue(Print(query_results[selected_index as usize].clone()))?;
+        } else {
+            stdout.queue(Print(format!("No results founds.")))?;
         }
+
         stdout.flush().unwrap();
         std::thread::sleep(std::time::Duration::from_millis(33));
     }
