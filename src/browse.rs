@@ -40,7 +40,7 @@ fn do_move<'a>(
             }
         }
         Direction::Down => {
-            if *selected_index < items - items_per_row {
+            if *selected_index < items - items_per_row && items >= *selected_index + items_per_row {
                 *previously_selected_index = Some(*selected_index);
                 *selected_index += items_per_row;
             }
