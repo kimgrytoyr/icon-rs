@@ -100,14 +100,62 @@ pub fn browse(
     let mut quit = false;
 
     let mut selected: Option<String> = None;
+    let mut search_mode = false;
+    let mut search_string = if let Some(q) = &args.query {
+        q.to_owned()
+    } else {
+        String::new()
+    };
 
     while !quit {
         if poll(Duration::from_millis(500)).unwrap() {
             match read().unwrap() {
                 Event::Key(event) => match event.code {
+                    KeyCode::Backspace => {
+                        if search_mode {
+                            search_string.pop();
+                        }
+                    }
                     KeyCode::Enter => {
-                        selected = Some(query_results[selected_index as usize].clone());
-                        quit = true;
+                        if !search_mode {
+                            selected = Some(query_results[selected_index as usize].clone());
+                            quit = true;
+                        } else {
+                            search_mode = false;
+                            let (p, q) = if search_string.contains(":") {
+                                let (p, q) = search_string.split_once(":").unwrap();
+
+                                (Some(p.to_string()), Some(q.to_string()))
+                            } else {
+                                (None, Some(search_string.to_string()))
+                            };
+                            query_results = query(&q, &p, false)?;
+
+                            query_results.truncate(100);
+
+                            if !query_results.is_empty() {
+                                stdout.queue(Clear(ClearType::All))?;
+
+                                let mut row = 1;
+                                let mut col = 2;
+
+                                for r in query_results.iter() {
+                                    stdout.queue(MoveTo(col as u16, row))?;
+                                    preview(&r, collections_cache)?;
+
+                                    if col + 18 > cols {
+                                        col = 2;
+                                        row += 4;
+                                    } else {
+                                        col += 8;
+                                    };
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Esc => {
+                        search_mode = false;
+                        search_string = "".to_string();
                     }
                     KeyCode::Up => {
                         do_move(
@@ -146,48 +194,55 @@ pub fn browse(
                         );
                     }
                     KeyCode::Char(c) => {
-                        if c == 'q' {
-                            quit = true;
-                        }
-                        if c == 'j' {
-                            // Move down
-                            do_move(
-                                Direction::Down,
-                                &mut selected_index,
-                                &mut previously_selected_index,
-                                query_results.len() as u16,
-                                &cols,
-                            );
-                        }
-                        if c == 'k' {
-                            // Move up
-                            do_move(
-                                Direction::Up,
-                                &mut selected_index,
-                                &mut previously_selected_index,
-                                query_results.len() as u16,
-                                &cols,
-                            );
-                        }
-                        if c == 'h' {
-                            // Move left
-                            do_move(
-                                Direction::Left,
-                                &mut selected_index,
-                                &mut previously_selected_index,
-                                query_results.len() as u16,
-                                &cols,
-                            );
-                        }
-                        if c == 'l' {
-                            // Move right
-                            do_move(
-                                Direction::Right,
-                                &mut selected_index,
-                                &mut previously_selected_index,
-                                query_results.len() as u16,
-                                &cols,
-                            );
+                        if search_mode {
+                            search_string.push(c);
+                        } else {
+                            if c == 'q' {
+                                quit = true;
+                            }
+                            if c == 's' && !search_mode {
+                                search_mode = true;
+                            }
+                            if c == 'j' {
+                                // Move down
+                                do_move(
+                                    Direction::Down,
+                                    &mut selected_index,
+                                    &mut previously_selected_index,
+                                    query_results.len() as u16,
+                                    &cols,
+                                );
+                            }
+                            if c == 'k' {
+                                // Move up
+                                do_move(
+                                    Direction::Up,
+                                    &mut selected_index,
+                                    &mut previously_selected_index,
+                                    query_results.len() as u16,
+                                    &cols,
+                                );
+                            }
+                            if c == 'h' {
+                                // Move left
+                                do_move(
+                                    Direction::Left,
+                                    &mut selected_index,
+                                    &mut previously_selected_index,
+                                    query_results.len() as u16,
+                                    &cols,
+                                );
+                            }
+                            if c == 'l' {
+                                // Move right
+                                do_move(
+                                    Direction::Right,
+                                    &mut selected_index,
+                                    &mut previously_selected_index,
+                                    query_results.len() as u16,
+                                    &cols,
+                                );
+                            }
                         }
                     }
                     _ => {}
@@ -253,10 +308,15 @@ pub fn browse(
             stdout.queue(Print(format!("Per row: {}", (cols - 4) / 8)))?;
         }
 
-        stdout.queue(MoveTo(1, rows - 1))?;
-        stdout.queue(Clear(ClearType::CurrentLine))?;
-        stdout.queue(Print(query_results[selected_index as usize].clone()))?;
-
+        if search_mode {
+            stdout.queue(MoveTo(1, rows - 1))?;
+            stdout.queue(Clear(ClearType::CurrentLine))?;
+            stdout.queue(Print(format!("Enter search: {}", search_string)))?;
+        } else {
+            stdout.queue(MoveTo(1, rows - 1))?;
+            stdout.queue(Clear(ClearType::CurrentLine))?;
+            stdout.queue(Print(query_results[selected_index as usize].clone()))?;
+        }
         stdout.flush().unwrap();
         std::thread::sleep(std::time::Duration::from_millis(33));
     }
