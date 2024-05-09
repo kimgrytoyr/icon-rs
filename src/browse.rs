@@ -152,8 +152,8 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
                 stdout.queue(Print(format!("      ")))?;
                 stdout.queue(MoveTo(col as u16, row + 2))?;
                 stdout.queue(Print(format!("      ")))?;
-                stdout.queue(SetForegroundColor(Color::White))?;
-                stdout.queue(SetBackgroundColor(Color::Black))?;
+                stdout.queue(SetForegroundColor(Color::Reset))?;
+                stdout.queue(SetBackgroundColor(Color::Reset))?;
             }
 
             if col + 18 > cols {
