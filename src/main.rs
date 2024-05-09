@@ -1,7 +1,6 @@
-use std::error::Error;
+use std::{collections::HashMap, error::Error};
 
 use clap::Parser;
-use icon::generate_cached_icons;
 use log::LevelFilter;
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, TerminalMode};
 
@@ -9,15 +8,18 @@ use crate::cli::Cli;
 
 mod browse;
 mod cli;
-mod enums;
+pub mod enums;
+pub mod files;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::parse();
 
+    let mut collections_cache = HashMap::<String, enums::IconCollection>::new();
+
     let log_level = if args.verbose {
         LevelFilter::Debug
     } else {
-        LevelFilter::Warn
+        LevelFilter::Error
     };
     let config = ConfigBuilder::new().set_time_format_rfc3339().build();
 
@@ -29,19 +31,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     )])?;
 
     if args.fetch_collections {
-        icon::fetch_collections(true)?;
+        files::fetch_collections(true)?;
     }
 
     if args.generate_icons_cache {
-        generate_cached_icons()?;
+        files::generate_cached_icons()?;
     }
 
     if args.browse {
-        browse::browse(&args)?;
+        browse::browse(&args, &mut collections_cache)?;
     }
 
     if (args.query.is_some() || args.prefix.is_some()) && !args.browse {
-        let results = icon::query(&args.query, &args.prefix, args.preview && !args.browse)?;
+        let results = files::query(&args.query, &args.prefix, args.preview && !args.browse)?;
 
         if !args.preview {
             for r in &results {

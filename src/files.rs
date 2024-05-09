@@ -1,4 +1,4 @@
-use crate::enums::Collection;
+use crate::enums::{Collection, IconCollection};
 use log::info;
 use resvg::tiny_skia;
 use resvg::usvg::{self, fontdb};
@@ -11,33 +11,50 @@ use std::fs::{create_dir_all, File};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::{path::PathBuf, process::exit};
 
-use enums::IconCollection;
 use home::home_dir;
 use log::error;
 
-mod enums;
-
-pub fn get_icon_xml(icon_identifier: &str) -> Result<(usize, usize, String), Box<dyn Error>> {
+pub fn get_icon_xml(
+    icon_identifier: &str,
+    collections_cache: &mut HashMap<String, IconCollection>,
+) -> Result<(usize, usize, String), Box<dyn Error>> {
     let Some((collection_id, icon_identifier)) = icon_identifier.split_once(':') else {
         todo!();
     };
 
-    let collection = get_collection(collection_id)?;
-    if let Some(icon) = collection.icons.get(icon_identifier) {
-        Ok((
-            collection.width.unwrap_or(16),
-            collection.height.unwrap_or(16),
-            icon.body.clone(),
-        ))
+    if let Some(collection) = collections_cache.get(collection_id) {
+        if let Some(icon) = collection.icons.get(icon_identifier) {
+            Ok((
+                collection.width.unwrap_or(16),
+                collection.height.unwrap_or(16),
+                icon.body.clone(),
+            ))
+        } else {
+            Err("Could not find icon.".into())
+        }
     } else {
-        Err("Could not find icon.".into())
+        let collection = get_collection(collection_id)?;
+        collections_cache.insert(collection_id.to_string(), collection.clone());
+
+        if let Some(icon) = collection.icons.get(icon_identifier) {
+            Ok((
+                collection.width.unwrap_or(16),
+                collection.height.unwrap_or(16),
+                icon.body.clone(),
+            ))
+        } else {
+            Err("Could not find icon.".into())
+        }
     }
 }
 
-pub fn preview(icon_identifier: &str) -> Result<(), Box<dyn Error>> {
+pub fn preview(
+    icon_identifier: &str,
+    collections_cache: &mut HashMap<String, IconCollection>,
+) -> Result<(), Box<dyn Error>> {
     let mut file = Vec::new();
 
-    let (width, height, xml) = get_icon_xml(icon_identifier)?;
+    let (width, height, xml) = get_icon_xml(icon_identifier, collections_cache)?;
 
     let header = format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" color="white" viewBox="0 0 {} {}">"#,
@@ -291,7 +308,7 @@ pub fn query(
 
     if preview_inline {
         for f in &found {
-            preview(f)?;
+            preview(f, &mut HashMap::new())?;
             println!("{}", f);
             println!("");
         }

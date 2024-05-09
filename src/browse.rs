@@ -1,9 +1,11 @@
 use std::{
+    collections::HashMap,
     error::Error,
     io::{stdout, Write},
     time::Duration,
 };
 
+use crate::files::{preview, query};
 use crossterm::{
     cursor::{Hide, MoveTo},
     event::{poll, read, Event, KeyCode},
@@ -11,9 +13,8 @@ use crossterm::{
     terminal::{self, size, Clear, ClearType},
     QueueableCommand,
 };
-use icon::{preview, query};
 
-use crate::cli::Cli;
+use crate::{cli::Cli, enums::IconCollection};
 
 enum Direction {
     Up,
@@ -59,12 +60,16 @@ fn do_move<'a>(
     }
 }
 
-pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
+pub fn browse(
+    args: &Cli,
+    collections_cache: &mut HashMap<String, IconCollection>,
+) -> Result<(), Box<dyn Error>> {
     let (cols, rows) = size()?;
 
     terminal::enable_raw_mode()?;
 
     let mut stdout = stdout();
+
     stdout.queue(Hide)?;
     stdout.queue(Clear(ClearType::All)).unwrap();
 
@@ -73,7 +78,7 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
 
     let mut query_results = query(&args.query, &args.prefix, false)?;
 
-    query_results.truncate(100);
+    query_results.truncate(200);
 
     if !query_results.is_empty() {
         let mut row = 1;
@@ -81,7 +86,7 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
 
         for r in query_results.iter() {
             stdout.queue(MoveTo(col as u16, row))?;
-            preview(&r)?;
+            preview(&r, collections_cache)?;
 
             if col + 18 > cols {
                 col = 2;
