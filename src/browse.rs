@@ -78,7 +78,9 @@ pub fn browse(
 
     let mut query_results = query(&args.query, &args.prefix, false)?;
 
-    query_results.truncate(200);
+    let icons_per_row = (cols as usize - 2) / 8;
+    let max_icons = (((rows as usize) - 6) / 4) * icons_per_row;
+    query_results.truncate(max_icons);
 
     if !query_results.is_empty() {
         let mut row = 1;
@@ -120,6 +122,7 @@ pub fn browse(
     };
 
     while !quit {
+        let (cols, rows) = size()?;
         if poll(Duration::from_millis(500)).unwrap() {
             match read().unwrap() {
                 Event::Key(event) => match event.code {
@@ -145,7 +148,11 @@ pub fn browse(
                             let mut tmp_query_results = query(&q, &p, false)?;
 
                             if !tmp_query_results.is_empty() {
-                                tmp_query_results.truncate(100);
+                                let (cols, _rows) = size()?;
+                                let icons_per_row = (cols as usize - 2) / 8;
+                                let max_icons = (((rows as usize) - 6) / 4) * icons_per_row;
+
+                                tmp_query_results.truncate(max_icons);
                                 query_results = tmp_query_results;
 
                                 selected_index = 0;
