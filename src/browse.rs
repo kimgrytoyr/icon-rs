@@ -15,6 +15,50 @@ use icon::{preview, query};
 
 use crate::cli::Cli;
 
+enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+fn do_move<'a>(
+    direction: Direction,
+    selected_index: &'a mut u16,
+    previously_selected_index: &mut Option<u16>,
+    items: u16,
+    cols: &u16,
+) -> () {
+    let items_per_row = (cols - 2) / 8;
+
+    match direction {
+        Direction::Up => {
+            if *selected_index + 1 > items_per_row {
+                *previously_selected_index = Some(*selected_index);
+                *selected_index -= items_per_row;
+            }
+        }
+        Direction::Down => {
+            if *selected_index < items - items_per_row {
+                *previously_selected_index = Some(*selected_index);
+                *selected_index += items_per_row;
+            }
+        }
+        Direction::Left => {
+            if *selected_index > 0 {
+                *previously_selected_index = Some(*selected_index);
+                *selected_index -= 1;
+            }
+        }
+        Direction::Right => {
+            if *selected_index < items - 1 {
+                *previously_selected_index = Some(*selected_index);
+                *selected_index += 1;
+            }
+        }
+    }
+}
+
 pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
     let (cols, rows) = size()?;
 
@@ -61,28 +105,40 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
                         quit = true;
                     }
                     KeyCode::Up => {
-                        if selected_index + 1 > cols / 8 {
-                            previously_selected_index = Some(selected_index);
-                            selected_index -= cols / 8;
-                        }
+                        do_move(
+                            Direction::Up,
+                            &mut selected_index,
+                            &mut previously_selected_index,
+                            query_results.len() as u16,
+                            &cols,
+                        );
                     }
                     KeyCode::Down => {
-                        if selected_index < query_results.len() as u16 - cols / 8 {
-                            previously_selected_index = Some(selected_index);
-                            selected_index += cols / 8;
-                        }
+                        do_move(
+                            Direction::Down,
+                            &mut selected_index,
+                            &mut previously_selected_index,
+                            query_results.len() as u16,
+                            &cols,
+                        );
                     }
                     KeyCode::Left => {
-                        if selected_index > 0 {
-                            previously_selected_index = Some(selected_index);
-                            selected_index -= 1;
-                        }
+                        do_move(
+                            Direction::Left,
+                            &mut selected_index,
+                            &mut previously_selected_index,
+                            query_results.len() as u16,
+                            &cols,
+                        );
                     }
                     KeyCode::Right => {
-                        if selected_index < query_results.len() as u16 - 1 {
-                            previously_selected_index = Some(selected_index);
-                            selected_index += 1;
-                        }
+                        do_move(
+                            Direction::Right,
+                            &mut selected_index,
+                            &mut previously_selected_index,
+                            query_results.len() as u16,
+                            &cols,
+                        );
                     }
                     KeyCode::Char(c) => {
                         if c == 'q' {
@@ -90,31 +146,43 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
                         }
                         if c == 'j' {
                             // Move down
-                            if selected_index < query_results.len() as u16 - cols / 8 {
-                                previously_selected_index = Some(selected_index);
-                                selected_index += cols / 8;
-                            }
+                            do_move(
+                                Direction::Down,
+                                &mut selected_index,
+                                &mut previously_selected_index,
+                                query_results.len() as u16,
+                                &cols,
+                            );
                         }
                         if c == 'k' {
                             // Move up
-                            if selected_index + 1 > cols / 8 {
-                                previously_selected_index = Some(selected_index);
-                                selected_index -= cols / 8;
-                            }
+                            do_move(
+                                Direction::Up,
+                                &mut selected_index,
+                                &mut previously_selected_index,
+                                query_results.len() as u16,
+                                &cols,
+                            );
                         }
                         if c == 'h' {
                             // Move left
-                            if selected_index > 0 {
-                                previously_selected_index = Some(selected_index);
-                                selected_index -= 1;
-                            }
+                            do_move(
+                                Direction::Left,
+                                &mut selected_index,
+                                &mut previously_selected_index,
+                                query_results.len() as u16,
+                                &cols,
+                            );
                         }
                         if c == 'l' {
                             // Move right
-                            if selected_index < query_results.len() as u16 - 1 {
-                                previously_selected_index = Some(selected_index);
-                                selected_index += 1;
-                            }
+                            do_move(
+                                Direction::Right,
+                                &mut selected_index,
+                                &mut previously_selected_index,
+                                query_results.len() as u16,
+                                &cols,
+                            );
                         }
                     }
                     _ => {}
@@ -164,6 +232,20 @@ pub fn browse(args: &Cli) -> Result<(), Box<dyn Error>> {
                 col += 8;
                 (col, row)
             };
+        }
+
+        if args.verbose {
+            stdout.queue(MoveTo(1, rows - 4))?;
+            stdout.queue(Clear(ClearType::CurrentLine))?;
+            stdout.queue(Print(format!("Index: {}", selected_index)))?;
+
+            stdout.queue(MoveTo(1, rows - 3))?;
+            stdout.queue(Clear(ClearType::CurrentLine))?;
+            stdout.queue(Print(format!("Grid width: {}", cols)))?;
+
+            stdout.queue(MoveTo(1, rows - 2))?;
+            stdout.queue(Clear(ClearType::CurrentLine))?;
+            stdout.queue(Print(format!("Per row: {}", (cols - 4) / 8)))?;
         }
 
         stdout.queue(MoveTo(1, rows - 1))?;

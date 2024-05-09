@@ -297,7 +297,5 @@ pub fn query(
         }
     }
 
-    info!("Searched {} icons.", icons.len());
-
     Ok(found)
 }
