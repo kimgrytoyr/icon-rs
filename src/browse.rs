@@ -83,9 +83,39 @@ fn render_query<'a>(
         let mut row = 1;
         let mut col = 2;
 
-        for r in query_results.iter() {
+        for (i, r) in query_results.iter().enumerate() {
             stdout.queue(MoveTo(col as u16, row))?;
             preview(&r, collections_cache, fontdb)?;
+
+            let i = i as u16;
+            if let Some(psi) = previously_selected_index {
+                if i == *psi {
+                    stdout.queue(MoveTo(col as u16, row))?;
+                    stdout.queue(Clear(ClearType::UntilNewLine))?;
+                    stdout.queue(MoveTo(col as u16, row + 1))?;
+                    stdout.queue(Clear(ClearType::UntilNewLine))?;
+                    stdout.queue(MoveTo(col as u16, row + 2))?;
+                    stdout.queue(Clear(ClearType::UntilNewLine))?;
+                    stdout.flush().unwrap();
+                }
+            }
+
+            if i == *selected_index {
+                stdout.queue(MoveTo(col as u16, row))?;
+                stdout.queue(SetForegroundColor(Color::White))?;
+                stdout.queue(SetBackgroundColor(Color::Blue))?;
+                stdout.queue(Print(format!("      ")))?;
+                stdout.queue(MoveTo(col as u16, row + 1))?;
+                stdout.queue(Print(format!("      ")))?;
+                stdout.queue(MoveTo(col as u16, row + 2))?;
+                stdout.queue(Print(format!("      ")))?;
+                stdout.queue(SetForegroundColor(Color::Reset))?;
+                stdout.queue(SetBackgroundColor(Color::Reset))?;
+            }
+
+            stdout.queue(MoveTo(1, rows - 1))?;
+            stdout.queue(Clear(ClearType::CurrentLine))?;
+            stdout.queue(Print(query_results[*selected_index as usize].clone()))?;
 
             if col + 18 > cols {
                 col = 2;
