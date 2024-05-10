@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use crate::files::{get_icon_xml, preview, query};
+use crate::files::{preview, query};
 use crossterm::{
     cursor::{self, MoveTo},
     event::{poll, read, Event, KeyCode},
@@ -386,18 +386,22 @@ pub fn browse(
 
     if let Some(selected) = selected {
         println!("{}", selected);
-
-        let (width, height, body) = get_icon_xml(&selected, collections_cache)?;
-
-        let header = format!(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" color="white" viewBox="0 0 {} {}">"#,
-            width, height
-        );
-        let footer = r#"</svg>"#;
-
-        let body = body.replace("stroke=\"#000\"", "stroke=\"#fff\"");
         println!("");
-        println!("{}{}{}", header, body, footer);
+        print!("  ");
+        preview(&selected, collections_cache, fontdb)?;
+        println!("");
+
+        // let (width, height, body) = get_icon_xml(&selected, collections_cache)?;
+        //
+        // let header = format!(
+        //     r#"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" color="white" viewBox="0 0 {} {}">"#,
+        //     width, height
+        // );
+        // let footer = r#"</svg>"#;
+        //
+        // let body = body.replace("stroke=\"#000\"", "stroke=\"#fff\"");
+        // println!("");
+        // println!("{}{}{}", header, body, footer);
     }
 
     stdout.queue(cursor::Show)?;
