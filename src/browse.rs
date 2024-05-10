@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::files::{get_collection, get_icon_xml, preview, query};
+use arboard::Clipboard;
 use crossterm::{
     cursor::{self, MoveTo},
     event::{poll, read, Event, KeyCode},
@@ -415,6 +416,8 @@ pub fn browse(
     terminal::disable_raw_mode()?;
 
     if let Some(selected) = selected {
+        let mut clipboard = Clipboard::new()?;
+        clipboard.set_text(selected.clone())?;
         println!("{}", selected);
         println!("");
         print!("  ");
