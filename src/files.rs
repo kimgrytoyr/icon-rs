@@ -1,5 +1,5 @@
 use crate::enums::{Collection, IconCollection};
-use log::{debug, info};
+use log::info;
 use resvg::tiny_skia;
 use resvg::usvg::fontdb::Database;
 use resvg::usvg::{self};
@@ -74,26 +74,15 @@ pub fn preview(
     let out_file = "/tmp/icon-rs-preview.png";
 
     let tree = {
-        debug!("usvg_opt");
         let opt = usvg::Options::default();
-        // debug!("fontdb:new");
-        // let mut fontdb = fontdb::Database::new();
-        // debug!("load_system_fonts");
-        // fontdb.load_system_fonts();
-        debug!("from_data");
         usvg::Tree::from_data(&in_file, &opt, &fontdb).unwrap()
     };
 
-    debug!("pixmap_size");
     let pixmap_size = tree.size().to_int_size();
-    debug!("pixmap_new");
     let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
-    debug!("resvg_render");
     resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
-    debug!("save_png");
     pixmap.save_png(out_file).unwrap();
 
-    debug!("render");
     let conf = Config {
         absolute_offset: false,
         x: 0,
@@ -103,10 +92,8 @@ pub fn preview(
         ..Default::default()
     };
 
-    debug!("print");
     print_from_file("/tmp/icon-rs-preview.png", &conf).expect("Image printing failed.");
 
-    debug!("return");
     Ok(())
 }
 
