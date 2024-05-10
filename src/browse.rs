@@ -30,7 +30,7 @@ fn do_move<'a>(
     items: u16,
     cols: &u16,
 ) -> () {
-    let items_per_row = (cols - 2) / 8;
+    let items_per_row = (cols - 4) / 8;
 
     match direction {
         Direction::Up => {
