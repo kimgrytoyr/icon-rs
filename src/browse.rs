@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use crate::files::{preview, query};
+use crate::files::{get_collection, get_icon_xml, preview, query};
 use crossterm::{
     cursor::{self, MoveTo},
     event::{poll, read, Event, KeyCode},
@@ -421,17 +421,34 @@ pub fn browse(
         preview(&selected, collections_cache, fontdb)?;
         println!("");
 
-        // let (width, height, body) = get_icon_xml(&selected, collections_cache)?;
-        //
-        // let header = format!(
-        //     r#"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" color="white" viewBox="0 0 {} {}">"#,
-        //     width, height
-        // );
-        // let footer = r#"</svg>"#;
-        //
-        // let body = body.replace("stroke=\"#000\"", "stroke=\"#fff\"");
-        // println!("");
-        // println!("{}{}{}", header, body, footer);
+        match &selected.split_once(":") {
+            Some((collection_id, _icon_id)) => {
+                let collection = get_collection(collection_id)?;
+                print!("License: {}", collection.info.license.title);
+                if let Some(license_url) = collection.info.license.url {
+                    println!(": {}", license_url);
+                } else {
+                    println!("");
+                }
+            }
+            None => {}
+        }
+
+        if args.output_svg {
+            let (width, height, body) = get_icon_xml(&selected, collections_cache)?;
+
+            let header = format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" color="white" viewBox="0 0 {} {}">"#,
+                width, height
+            );
+            let footer = r#"</svg>"#;
+
+            let body = body.replace("stroke=\"#000\"", "stroke=\"#fff\"");
+            println!("");
+            println!("{}{}{}", header, body, footer);
+        }
+
+        println!("");
     }
 
     stdout.queue(cursor::Show)?;
