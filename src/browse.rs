@@ -70,7 +70,13 @@ fn render_query<'a>(
     collections_cache: &mut HashMap<String, IconCollection>,
     fontdb: &mut Database,
 ) -> Result<(), Box<dyn Error>> {
-    if !query_results.is_empty() {
+    if query_results.is_empty() {
+        *selected_index = 0;
+        *previously_selected_index = None;
+        stdout.queue(Clear(ClearType::All))?;
+
+        Ok(())
+    } else {
         let (cols, rows) = size()?;
         let icons_per_row = (cols as usize - 4) / 8;
         let max_icons = (((rows as usize) - 6) / 4) * icons_per_row;
@@ -126,8 +132,6 @@ fn render_query<'a>(
             };
         }
 
-        Ok(())
-    } else {
         Ok(())
     }
 }
@@ -403,7 +407,7 @@ pub fn browse(
         } else if !query_results.is_empty() {
             stdout.queue(Print(query_results[selected_index as usize].clone()))?;
         } else {
-            stdout.queue(Print(format!("No results founds.")))?;
+            stdout.queue(Print(format!("No results found.")))?;
         }
 
         stdout.flush().unwrap();
