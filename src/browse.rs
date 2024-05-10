@@ -1,13 +1,13 @@
 use std::{
     collections::HashMap,
     error::Error,
-    io::{stdout, Write},
+    io::{stdout, Stdout, Write},
     time::Duration,
 };
 
-use crate::files::{preview, query};
+use crate::files::{get_icon_xml, preview, query};
 use crossterm::{
-    cursor::{Hide, MoveTo},
+    cursor::{self, MoveTo},
     event::{poll, read, Event, KeyCode},
     style::{Color, Print, SetBackgroundColor, SetForegroundColor},
     terminal::{self, size, Clear, ClearType},
@@ -60,29 +60,24 @@ fn do_move<'a>(
     }
 }
 
-pub fn browse(
-    args: &Cli,
+fn render_query<'a>(
+    stdout: &mut Stdout,
+    query_results: &mut Vec<String>,
+    selected_index: &'a mut u16,
+    previously_selected_index: &mut Option<u16>,
     collections_cache: &mut HashMap<String, IconCollection>,
 ) -> Result<(), Box<dyn Error>> {
-    let (cols, rows) = size()?;
-
-    terminal::enable_raw_mode()?;
-
-    let mut stdout = stdout();
-
-    stdout.queue(Hide)?;
-    stdout.queue(Clear(ClearType::All)).unwrap();
-
-    let mut previously_selected_index: Option<u16> = None;
-    let mut selected_index: u16 = 0;
-
-    let mut query_results = query(&args.query, &args.prefix, false)?;
-
-    let icons_per_row = (cols as usize - 2) / 8;
-    let max_icons = (((rows as usize) - 6) / 4) * icons_per_row;
-    query_results.truncate(max_icons);
-
     if !query_results.is_empty() {
+        let (cols, rows) = size()?;
+        let icons_per_row = (cols as usize - 4) / 8;
+        let max_icons = (((rows as usize) - 6) / 4) * icons_per_row;
+
+        query_results.truncate(max_icons);
+
+        *selected_index = 0;
+        *previously_selected_index = None;
+        stdout.queue(Clear(ClearType::All))?;
+
         let mut row = 1;
         let mut col = 2;
 
@@ -97,12 +92,14 @@ pub fn browse(
                 col += 8;
             };
         }
+
+        Ok(())
+    } else {
+        Ok(())
     }
+}
 
-    let mut quit = false;
-
-    let mut selected: Option<String> = None;
-    let mut search_mode = false;
+fn parse_original_search_string(args: &Cli) -> Result<String, Box<dyn Error>> {
     let orig_query = if let Some(q) = &args.query {
         q.to_owned()
     } else {
@@ -115,16 +112,72 @@ pub fn browse(
         String::new()
     };
 
-    let mut search_string = if orig_prefix.is_empty() {
-        orig_query
+    if orig_prefix.is_empty() {
+        Ok(orig_query)
     } else {
-        format!("{}:{}", orig_prefix, orig_query)
-    };
+        Ok(format!("{}:{}", orig_prefix, orig_query))
+    }
+}
+
+fn parse_search_string(
+    search_string: &str,
+) -> Result<(Option<String>, Option<String>), Box<dyn Error>> {
+    if search_string.contains(":") {
+        let (p, q) = search_string.split_once(":").unwrap();
+
+        Ok((Some(p.to_string()), Some(q.to_string())))
+    } else {
+        Ok((None, Some(search_string.to_string())))
+    }
+}
+
+pub fn browse(
+    args: &Cli,
+    collections_cache: &mut HashMap<String, IconCollection>,
+) -> Result<(), Box<dyn Error>> {
+    terminal::enable_raw_mode()?;
+
+    let mut stdout = stdout();
+
+    stdout.queue(cursor::Hide)?;
+    stdout.queue(Clear(ClearType::All)).unwrap();
+
+    // State START
+    let mut quit = false;
+    let mut selected: Option<String> = None;
+    let mut search_mode = false;
+    let mut search_string = parse_original_search_string(&args)?;
+    let mut previously_selected_index: Option<u16> = None;
+    let mut selected_index: u16 = 0;
+    // State END
+
+    let mut query_results = query(&args.query, &args.prefix, false)?;
+
+    render_query(
+        &mut stdout,
+        &mut query_results,
+        &mut selected_index,
+        &mut previously_selected_index,
+        collections_cache,
+    )?;
 
     while !quit {
         let (cols, rows) = size()?;
+
         if poll(Duration::from_millis(500)).unwrap() {
             match read().unwrap() {
+                Event::Resize(_cols, _rows) => {
+                    let (p, q) = parse_search_string(&search_string)?;
+                    query_results = query(&q, &p, false)?;
+
+                    render_query(
+                        &mut stdout,
+                        &mut query_results,
+                        &mut selected_index,
+                        &mut previously_selected_index,
+                        collections_cache,
+                    )?;
+                }
                 Event::Key(event) => match event.code {
                     KeyCode::Backspace => {
                         if search_mode {
@@ -138,41 +191,16 @@ pub fn browse(
                         } else {
                             search_mode = false;
 
-                            let (p, q) = if search_string.contains(":") {
-                                let (p, q) = search_string.split_once(":").unwrap();
+                            let (p, q) = parse_search_string(&search_string)?;
+                            query_results = query(&q, &p, false)?;
 
-                                (Some(p.to_string()), Some(q.to_string()))
-                            } else {
-                                (None, Some(search_string.to_string()))
-                            };
-                            let mut tmp_query_results = query(&q, &p, false)?;
-
-                            if !tmp_query_results.is_empty() {
-                                let (cols, _rows) = size()?;
-                                let icons_per_row = (cols as usize - 2) / 8;
-                                let max_icons = (((rows as usize) - 6) / 4) * icons_per_row;
-
-                                tmp_query_results.truncate(max_icons);
-                                query_results = tmp_query_results;
-
-                                selected_index = 0;
-                                stdout.queue(Clear(ClearType::All))?;
-
-                                let mut row = 1;
-                                let mut col = 2;
-
-                                for r in query_results.iter() {
-                                    stdout.queue(MoveTo(col as u16, row))?;
-                                    preview(&r, collections_cache)?;
-
-                                    if col + 18 > cols {
-                                        col = 2;
-                                        row += 4;
-                                    } else {
-                                        col += 8;
-                                    };
-                                }
-                            }
+                            render_query(
+                                &mut stdout,
+                                &mut query_results,
+                                &mut selected_index,
+                                &mut previously_selected_index,
+                                collections_cache,
+                            )?;
                         }
                     }
                     KeyCode::Esc => {
@@ -272,6 +300,7 @@ pub fn browse(
             }
         }
 
+        // TODO: Improve this section.
         let mut col = 2;
         let mut row = 1;
 
