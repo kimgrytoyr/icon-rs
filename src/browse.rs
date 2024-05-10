@@ -382,5 +382,7 @@ pub fn browse(
         println!("{}", selected);
     }
 
+    stdout.queue(cursor::Show)?;
+
     Ok(())
 }
