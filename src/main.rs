@@ -2,9 +2,10 @@ use std::{collections::HashMap, error::Error};
 
 use clap::Parser;
 use log::LevelFilter;
+use resvg::usvg::fontdb;
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, TerminalMode};
 
-use crate::cli::Cli;
+use crate::{cli::Cli, files::preview};
 
 mod browse;
 mod cli;
@@ -15,6 +16,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::parse();
 
     let mut collections_cache = HashMap::<String, enums::IconCollection>::new();
+    let mut fontdb = fontdb::Database::new();
+    fontdb.load_system_fonts();
 
     let log_level = if args.verbose {
         LevelFilter::Debug
@@ -39,15 +42,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if args.browse {
-        browse::browse(&args, &mut collections_cache)?;
+        browse::browse(&args, &mut collections_cache, &mut fontdb)?;
     }
 
     if (args.query.is_some() || args.prefix.is_some()) && !args.browse {
-        let results = files::query(&args.query, &args.prefix, args.preview && !args.browse)?;
+        let results = files::query(&args.query, &args.prefix)?;
 
-        if !args.preview {
-            for r in &results {
-                println!("{}", r);
+        for r in &results {
+            if args.preview {
+                preview(r, &mut HashMap::new(), &mut fontdb)?;
+            }
+            println!("{}", r);
+            if args.preview {
+                println!("");
             }
         }
     }

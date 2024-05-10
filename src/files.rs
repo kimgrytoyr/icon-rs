@@ -1,7 +1,8 @@
 use crate::enums::{Collection, IconCollection};
-use log::info;
+use log::{debug, info};
 use resvg::tiny_skia;
-use resvg::usvg::{self, fontdb};
+use resvg::usvg::fontdb::Database;
+use resvg::usvg::{self};
 use std::collections::HashMap;
 use std::error::Error;
 use std::io::copy;
@@ -51,6 +52,7 @@ pub fn get_icon_xml(
 pub fn preview(
     icon_identifier: &str,
     collections_cache: &mut HashMap<String, IconCollection>,
+    fontdb: &mut Database,
 ) -> Result<(), Box<dyn Error>> {
     let mut file = Vec::new();
 
@@ -72,17 +74,26 @@ pub fn preview(
     let out_file = "/tmp/icon-rs-preview.png";
 
     let tree = {
+        debug!("usvg_opt");
         let opt = usvg::Options::default();
-        let mut fontdb = fontdb::Database::new();
-        fontdb.load_system_fonts();
+        // debug!("fontdb:new");
+        // let mut fontdb = fontdb::Database::new();
+        // debug!("load_system_fonts");
+        // fontdb.load_system_fonts();
+        debug!("from_data");
         usvg::Tree::from_data(&in_file, &opt, &fontdb).unwrap()
     };
 
+    debug!("pixmap_size");
     let pixmap_size = tree.size().to_int_size();
+    debug!("pixmap_new");
     let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
+    debug!("resvg_render");
     resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+    debug!("save_png");
     pixmap.save_png(out_file).unwrap();
 
+    debug!("render");
     let conf = Config {
         absolute_offset: false,
         x: 0,
@@ -92,8 +103,10 @@ pub fn preview(
         ..Default::default()
     };
 
+    debug!("print");
     print_from_file("/tmp/icon-rs-preview.png", &conf).expect("Image printing failed.");
 
+    debug!("return");
     Ok(())
 }
 
@@ -284,7 +297,6 @@ pub fn generate_cached_icons() -> Result<Vec<String>, Box<dyn Error>> {
 pub fn query(
     query: &Option<String>,
     prefix: &Option<String>,
-    preview_inline: bool,
 ) -> Result<Vec<String>, Box<dyn Error>> {
     let icons = get_cached_icons()?;
 
@@ -305,14 +317,6 @@ pub fn query(
         })
         .map(String::from)
         .collect();
-
-    if preview_inline {
-        for f in &found {
-            preview(f, &mut HashMap::new())?;
-            println!("{}", f);
-            println!("");
-        }
-    }
 
     Ok(found)
 }

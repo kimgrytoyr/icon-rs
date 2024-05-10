@@ -13,6 +13,7 @@ use crossterm::{
     terminal::{self, size, Clear, ClearType},
     QueueableCommand,
 };
+use resvg::usvg::fontdb::Database;
 
 use crate::{cli::Cli, enums::IconCollection};
 
@@ -66,6 +67,7 @@ fn render_query<'a>(
     selected_index: &'a mut u16,
     previously_selected_index: &mut Option<u16>,
     collections_cache: &mut HashMap<String, IconCollection>,
+    fontdb: &mut Database,
 ) -> Result<(), Box<dyn Error>> {
     if !query_results.is_empty() {
         let (cols, rows) = size()?;
@@ -83,7 +85,7 @@ fn render_query<'a>(
 
         for r in query_results.iter() {
             stdout.queue(MoveTo(col as u16, row))?;
-            preview(&r, collections_cache)?;
+            preview(&r, collections_cache, fontdb)?;
 
             if col + 18 > cols {
                 col = 2;
@@ -134,6 +136,7 @@ fn parse_search_string(
 pub fn browse(
     args: &Cli,
     collections_cache: &mut HashMap<String, IconCollection>,
+    fontdb: &mut Database,
 ) -> Result<(), Box<dyn Error>> {
     terminal::enable_raw_mode()?;
 
@@ -151,7 +154,7 @@ pub fn browse(
     let mut selected_index: u16 = 0;
     // State END
 
-    let mut query_results = query(&args.query, &args.prefix, false)?;
+    let mut query_results = query(&args.query, &args.prefix)?;
 
     render_query(
         &mut stdout,
@@ -159,6 +162,7 @@ pub fn browse(
         &mut selected_index,
         &mut previously_selected_index,
         collections_cache,
+        fontdb,
     )?;
 
     while !quit {
@@ -168,7 +172,7 @@ pub fn browse(
             match read().unwrap() {
                 Event::Resize(_cols, _rows) => {
                     let (p, q) = parse_search_string(&search_string)?;
-                    query_results = query(&q, &p, false)?;
+                    query_results = query(&q, &p)?;
 
                     render_query(
                         &mut stdout,
@@ -176,6 +180,7 @@ pub fn browse(
                         &mut selected_index,
                         &mut previously_selected_index,
                         collections_cache,
+                        fontdb,
                     )?;
                 }
                 Event::Key(event) => match event.code {
@@ -192,7 +197,7 @@ pub fn browse(
                             search_mode = false;
 
                             let (p, q) = parse_search_string(&search_string)?;
-                            query_results = query(&q, &p, false)?;
+                            query_results = query(&q, &p)?;
 
                             render_query(
                                 &mut stdout,
@@ -200,6 +205,7 @@ pub fn browse(
                                 &mut selected_index,
                                 &mut previously_selected_index,
                                 collections_cache,
+                                fontdb,
                             )?;
                         }
                     }
@@ -380,6 +386,18 @@ pub fn browse(
 
     if let Some(selected) = selected {
         println!("{}", selected);
+
+        let (width, height, body) = get_icon_xml(&selected, collections_cache)?;
+
+        let header = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" color="white" viewBox="0 0 {} {}">"#,
+            width, height
+        );
+        let footer = r#"</svg>"#;
+
+        let body = body.replace("stroke=\"#000\"", "stroke=\"#fff\"");
+        println!("");
+        println!("{}{}{}", header, body, footer);
     }
 
     stdout.queue(cursor::Show)?;
