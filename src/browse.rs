@@ -7,6 +7,7 @@ use std::{
 
 use crate::files::{get_collection, get_icon_xml, preview, query};
 use arboard::Clipboard;
+use chrono::{DateTime, TimeDelta, Utc};
 use crossterm::{
     cursor::{self, MoveTo},
     event::{poll, read, Event, KeyCode},
@@ -23,6 +24,11 @@ enum Direction {
     Down,
     Left,
     Right,
+}
+
+struct Message {
+    message: String,
+    delete_at: DateTime<Utc>,
 }
 
 fn do_move<'a>(
@@ -173,12 +179,7 @@ pub fn browse(
     collections_cache: &mut HashMap<String, IconCollection>,
     fontdb: &mut Database,
 ) -> Result<(), Box<dyn Error>> {
-    terminal::enable_raw_mode()?;
-
-    let mut stdout = stdout();
-
-    stdout.queue(cursor::Hide)?;
-    stdout.queue(Clear(ClearType::All)).unwrap();
+    let mut clipboard = Clipboard::new()?;
 
     // State START
     let mut quit = false;
@@ -187,9 +188,16 @@ pub fn browse(
     let mut search_string = parse_original_search_string(&args)?;
     let mut previously_selected_index: Option<u16> = None;
     let mut selected_index: u16 = 0;
+    let mut messages = Vec::<Message>::new();
     // State END
 
     let mut query_results = query(&args.query, &args.prefix)?;
+
+    terminal::enable_raw_mode()?;
+    let mut stdout = stdout();
+
+    stdout.queue(cursor::Hide)?;
+    stdout.queue(Clear(ClearType::All)).unwrap();
 
     render_query(
         &mut stdout,
@@ -292,6 +300,17 @@ pub fn browse(
                             }
                             if c == 's' && !search_mode {
                                 search_mode = true;
+                            }
+                            if c == 'c' && !search_mode {
+                                let id = query_results[selected_index as usize].clone();
+                                clipboard.set_text(id)?;
+
+                                messages.push(Message {
+                                    message: "Copied to clipboard!".to_string(),
+                                    delete_at: chrono::Utc::now()
+                                        .checked_add_signed(TimeDelta::seconds(2))
+                                        .unwrap(),
+                                });
                             }
                             if c == 'j' {
                                 // Move down
@@ -399,6 +418,15 @@ pub fn browse(
             stdout.queue(Print(format!("Per row: {}", (cols - 4) / 8)))?;
         }
 
+        stdout.queue(MoveTo(1, rows - 2))?;
+        stdout.queue(Clear(ClearType::CurrentLine))?;
+        if !messages.is_empty() {
+            match messages.last() {
+                Some(last_message) => stdout.queue(Print(&last_message.message))?,
+                None => stdout.queue(Print(""))?,
+            };
+        };
+
         stdout.queue(MoveTo(1, rows - 1))?;
         stdout.queue(Clear(ClearType::CurrentLine))?;
 
@@ -411,6 +439,20 @@ pub fn browse(
         }
 
         stdout.flush().unwrap();
+
+        let mut message_indexes_to_delete = Vec::new();
+        for (i, message) in messages.iter().enumerate() {
+            let utc_now = Utc::now();
+
+            if message.delete_at < utc_now {
+                message_indexes_to_delete.push(i);
+            }
+        }
+
+        for message_index_to_delete in message_indexes_to_delete.iter() {
+            messages.remove(*message_index_to_delete);
+        }
+
         std::thread::sleep(std::time::Duration::from_millis(33));
     }
 
@@ -420,7 +462,6 @@ pub fn browse(
     terminal::disable_raw_mode()?;
 
     if let Some(selected) = selected {
-        let mut clipboard = Clipboard::new()?;
         clipboard.set_text(selected.clone())?;
         println!("{}", selected);
         println!("");
