@@ -10,7 +10,7 @@ use arboard::Clipboard;
 use chrono::{DateTime, TimeDelta, Utc};
 use crossterm::{
     cursor::{self, MoveTo},
-    event::{poll, read, Event, KeyCode},
+    event::{poll, read, Event, KeyCode, KeyModifiers},
     style::{Color, Print, SetBackgroundColor, SetForegroundColor},
     terminal::{self, size, Clear, ClearType},
     QueueableCommand,
@@ -232,28 +232,30 @@ pub fn browse(
                             search_string.pop();
                         }
                     }
-                    KeyCode::Enter => {
-                        if !search_mode {
-                            selected = Some(query_results[selected_index as usize].clone());
-                            quit = true;
-                        } else {
-                            search_mode = false;
-
-                            let (p, q) = parse_search_string(&search_string)?;
-                            query_results = query(&q, &p)?;
-
-                            render_query(
-                                &mut stdout,
-                                &mut query_results,
-                                &mut selected_index,
-                                &mut previously_selected_index,
-                                collections_cache,
-                                fontdb,
-                            )?;
-                        }
+                    KeyCode::Enter if !search_mode => {
+                        selected = Some(query_results[selected_index as usize].clone());
+                        quit = true;
                     }
-                    KeyCode::Esc => {
+                    KeyCode::Enter if search_mode => {
                         search_mode = false;
+
+                        let (p, q) = parse_search_string(&search_string)?;
+                        query_results = query(&q, &p)?;
+
+                        render_query(
+                            &mut stdout,
+                            &mut query_results,
+                            &mut selected_index,
+                            &mut previously_selected_index,
+                            collections_cache,
+                            fontdb,
+                        )?;
+                    }
+                    KeyCode::Esc if search_mode => {
+                        search_mode = false;
+                    }
+                    KeyCode::Esc if !search_mode => {
+                        quit = true;
                     }
                     KeyCode::Up => {
                         do_move(
@@ -291,68 +293,88 @@ pub fn browse(
                             &cols,
                         );
                     }
-                    KeyCode::Char(c) => {
-                        if search_mode {
-                            search_string.push(c);
-                        } else {
-                            if c == 'q' {
-                                quit = true;
-                            }
-                            if c == 's' && !search_mode {
-                                search_mode = true;
-                            }
-                            if c == 'c' && !search_mode {
-                                let id = query_results[selected_index as usize].clone();
-                                clipboard.set_text(id)?;
+                    KeyCode::Char(c) if search_mode => {
+                        search_string.push(c);
+                    }
+                    KeyCode::Char('q') => {
+                        quit = true;
+                    }
+                    KeyCode::Char('s') => {
+                        search_mode = true;
+                    }
+                    KeyCode::Char('c') => {
+                        let id = query_results[selected_index as usize].clone();
+                        clipboard.set_text(id)?;
 
-                                messages.push(Message {
-                                    message: "Copied to clipboard!".to_string(),
-                                    delete_at: chrono::Utc::now()
-                                        .checked_add_signed(TimeDelta::seconds(2))
-                                        .unwrap(),
-                                });
-                            }
-                            if c == 'j' {
-                                // Move down
-                                do_move(
-                                    Direction::Down,
-                                    &mut selected_index,
-                                    &mut previously_selected_index,
-                                    query_results.len() as u16,
-                                    &cols,
-                                );
-                            }
-                            if c == 'k' {
-                                // Move up
-                                do_move(
-                                    Direction::Up,
-                                    &mut selected_index,
-                                    &mut previously_selected_index,
-                                    query_results.len() as u16,
-                                    &cols,
-                                );
-                            }
-                            if c == 'h' {
-                                // Move left
-                                do_move(
-                                    Direction::Left,
-                                    &mut selected_index,
-                                    &mut previously_selected_index,
-                                    query_results.len() as u16,
-                                    &cols,
-                                );
-                            }
-                            if c == 'l' {
-                                // Move right
-                                do_move(
-                                    Direction::Right,
-                                    &mut selected_index,
-                                    &mut previously_selected_index,
-                                    query_results.len() as u16,
-                                    &cols,
-                                );
-                            }
-                        }
+                        messages.push(Message {
+                            message: "Copied to clipboard!".to_string(),
+                            delete_at: chrono::Utc::now()
+                                .checked_add_signed(TimeDelta::seconds(2))
+                                .unwrap(),
+                        });
+                    }
+                    KeyCode::Char('g') if event.modifiers != KeyModifiers::SHIFT => {
+                        let current = query_results[selected_index as usize].clone();
+
+                        let (collection_id, _) = current.split_once(":").unwrap();
+                        search_string = format!("{}:", collection_id);
+                        let (p, _) = parse_search_string(search_string.as_str())?;
+                        query_results = query(&None, &p)?;
+
+                        messages.push(Message {
+                            message: format!("Showing collection '{}'", collection_id),
+                            delete_at: chrono::Utc::now()
+                                .checked_add_signed(TimeDelta::seconds(2))
+                                .unwrap(),
+                        });
+                        render_query(
+                            &mut stdout,
+                            &mut query_results,
+                            &mut selected_index,
+                            &mut previously_selected_index,
+                            collections_cache,
+                            fontdb,
+                        )?;
+                    }
+                    KeyCode::Char('j') => {
+                        // Move down
+                        do_move(
+                            Direction::Down,
+                            &mut selected_index,
+                            &mut previously_selected_index,
+                            query_results.len() as u16,
+                            &cols,
+                        );
+                    }
+                    KeyCode::Char('k') => {
+                        // Move up
+                        do_move(
+                            Direction::Up,
+                            &mut selected_index,
+                            &mut previously_selected_index,
+                            query_results.len() as u16,
+                            &cols,
+                        );
+                    }
+                    KeyCode::Char('h') => {
+                        // Move left
+                        do_move(
+                            Direction::Left,
+                            &mut selected_index,
+                            &mut previously_selected_index,
+                            query_results.len() as u16,
+                            &cols,
+                        );
+                    }
+                    KeyCode::Char('l') => {
+                        // Move right
+                        do_move(
+                            Direction::Right,
+                            &mut selected_index,
+                            &mut previously_selected_index,
+                            query_results.len() as u16,
+                            &cols,
+                        );
                     }
                     _ => {}
                 },
