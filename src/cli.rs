@@ -23,6 +23,10 @@ pub struct Cli {
     #[clap(short = 'b', long = "browse", action=ArgAction::SetTrue)]
     pub browse: bool,
 
+    /// Disables the browser for the current session if default browse config is set.
+    #[clap(long = "no-browse", action=ArgAction::SetTrue)]
+    pub no_browse: bool,
+
     /// Print more verbose debug messages.
     #[clap(short = 'v', long = "verbose", action=ArgAction::SetTrue)]
     pub verbose: bool,
@@ -30,6 +34,10 @@ pub struct Cli {
     /// After selecting an icon in the browser, print the SVG source of the icon.
     #[clap(short = 's', long = "svg", action=ArgAction::SetTrue)]
     pub output_svg: bool,
+
+    /// Read and print the config.
+    #[clap(long = "reset-config", action=ArgAction::SetTrue)]
+    pub reset_config: bool,
 
     /// The query string to search for.
     pub query: Option<String>,

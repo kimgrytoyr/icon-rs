@@ -1,0 +1,13 @@
+# You can provide a custom output format. Here's a multiline example
+# custom_output = """\
+# <div>
+#   <Icon id="{icon}" className="icon" />
+# </div>
+# """"
+#
+# {icon} will be replaced with the icon identifier, including the prefix.
+custom_output = """<Icon id="{icon}" />"""
+
+# If the browse mode should be enabled by default. If this is set to 
+# true you can use the --no-browse option to disable it per session.
+default_browse = false

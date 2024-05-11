@@ -5,7 +5,10 @@ use std::{
     time::Duration,
 };
 
-use crate::files::{get_collection, get_icon_xml, preview, query};
+use crate::{
+    config::read_config_file,
+    files::{get_collection, get_icon_xml, preview, query},
+};
 use arboard::Clipboard;
 use chrono::{DateTime, TimeDelta, Utc};
 use crossterm::{
@@ -505,6 +508,15 @@ pub fn browse(
                 }
             }
             None => {}
+        }
+
+        let config = read_config_file()?;
+
+        if let Some(output) = config.custom_output {
+            if !output.is_empty() {
+                println!("");
+                println!("{}", output.replace("{icon}", &selected));
+            }
         }
 
         if args.output_svg {

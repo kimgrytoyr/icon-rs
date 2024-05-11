@@ -1,6 +1,7 @@
 use std::{collections::HashMap, error::Error};
 
 use clap::Parser;
+use config::read_config_file;
 use log::LevelFilter;
 use resvg::usvg::fontdb;
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, TerminalMode};
@@ -9,6 +10,7 @@ use crate::{cli::Cli, files::preview};
 
 mod browse;
 mod cli;
+pub mod config;
 pub mod enums;
 pub mod files;
 
@@ -24,14 +26,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     } else {
         LevelFilter::Error
     };
-    let config = ConfigBuilder::new().set_time_format_rfc3339().build();
+    let log_config = ConfigBuilder::new().set_time_format_rfc3339().build();
 
     CombinedLogger::init(vec![TermLogger::new(
         log_level,
-        config,
+        log_config,
         TerminalMode::Mixed,
         ColorChoice::Auto,
     )])?;
+
+    if args.reset_config {
+        config::create_default_config_file()?;
+    }
+
+    let config = read_config_file()?;
+
+    let browse = if let Some(default_browse) = config.default_browse {
+        (args.browse || default_browse) && !args.no_browse
+    } else {
+        args.browse
+    };
 
     if args.fetch_collections {
         files::fetch_collections(true)?;
@@ -41,11 +55,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         files::generate_cached_icons()?;
     }
 
-    if args.browse {
+    if browse {
         browse::browse(&args, &mut collections_cache, &mut fontdb)?;
     }
 
-    if (args.query.is_some() || args.prefix.is_some()) && !args.browse {
+    if (args.query.is_some() || args.prefix.is_some()) && !browse {
         let results = files::query(&args.query, &args.prefix)?;
 
         for r in &results {
