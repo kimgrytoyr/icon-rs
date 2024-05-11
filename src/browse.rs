@@ -242,6 +242,7 @@ pub fn browse(
                     }
                     KeyCode::Enter if search_mode => {
                         search_mode = false;
+                        stdout.queue(cursor::Hide)?;
 
                         let (p, q) = parse_search_string(&search_string)?;
                         query_results = query(&q, &p)?;
@@ -255,6 +256,7 @@ pub fn browse(
                                     .unwrap(),
                             });
                             search_mode = true;
+                            stdout.queue(cursor::Show)?;
                         }
 
                         render_query(
@@ -268,6 +270,7 @@ pub fn browse(
                     }
                     KeyCode::Esc if search_mode => {
                         search_mode = false;
+                        stdout.queue(cursor::Hide)?;
                     }
                     KeyCode::Esc if !search_mode => {
                         quit = true;
@@ -316,6 +319,7 @@ pub fn browse(
                     }
                     KeyCode::Char('s') => {
                         search_mode = true;
+                        stdout.queue(cursor::Show)?;
                     }
                     KeyCode::Char('c') => {
                         let id = query_results[selected_index as usize].clone();
