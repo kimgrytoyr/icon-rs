@@ -22,7 +22,7 @@ pub fn create_default_config_file() -> Result<bool, Box<dyn Error>> {
 
     let default_config = include_str!("../config-default.toml");
 
-    let file = File::create(path.join("iconify-rs"))?;
+    let file = File::create(path.join("iconify-rs.toml"))?;
     let mut writer = BufWriter::new(file);
 
     writer.write_all(default_config.as_bytes())?;
@@ -31,14 +31,14 @@ pub fn create_default_config_file() -> Result<bool, Box<dyn Error>> {
 }
 
 pub fn read_config_file() -> Result<Config, Box<dyn Error>> {
-    let file_path = get_home_dir().join(".config/iconify-rs/iconify-rs");
+    let file_path = get_home_dir().join(".config/iconify-rs/iconify-rs.toml");
 
     if !fs::metadata(file_path.clone()).is_ok() {
         create_default_config_file()?;
     }
 
     let file = File::open(file_path)
-        .expect("config file should be present at ~/.config/iconify-rs/iconify-rs");
+        .expect("config file should be present at ~/.config/iconify-rs/iconify-rs.toml");
     let mut reader = BufReader::new(file);
     let mut result = String::new();
 

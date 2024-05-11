@@ -6,7 +6,7 @@
 # """"
 #
 # {icon} will be replaced with the icon identifier, including the prefix.
-custom_output = """<Icon id="{icon}" />"""
+custom_output = """<Icon icon="{icon}" />"""
 
 # If the browse mode should be enabled by default. If this is set to 
 # true you can use the --no-browse option to disable it per session.
