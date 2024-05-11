@@ -405,15 +405,15 @@ pub fn browse(
         }
 
         if args.verbose {
-            stdout.queue(MoveTo(1, rows - 4))?;
+            stdout.queue(MoveTo(1, rows - 5))?;
             stdout.queue(Clear(ClearType::CurrentLine))?;
             stdout.queue(Print(format!("Index: {}", selected_index)))?;
 
-            stdout.queue(MoveTo(1, rows - 3))?;
+            stdout.queue(MoveTo(1, rows - 4))?;
             stdout.queue(Clear(ClearType::CurrentLine))?;
             stdout.queue(Print(format!("Grid width: {}", cols)))?;
 
-            stdout.queue(MoveTo(1, rows - 2))?;
+            stdout.queue(MoveTo(1, rows - 3))?;
             stdout.queue(Clear(ClearType::CurrentLine))?;
             stdout.queue(Print(format!("Per row: {}", (cols - 4) / 8)))?;
         }
@@ -422,7 +422,11 @@ pub fn browse(
         stdout.queue(Clear(ClearType::CurrentLine))?;
         if !messages.is_empty() {
             match messages.last() {
-                Some(last_message) => stdout.queue(Print(&last_message.message))?,
+                Some(last_message) => {
+                    stdout.queue(SetForegroundColor(Color::Green))?;
+                    stdout.queue(Print(&last_message.message))?;
+                    stdout.queue(SetForegroundColor(Color::Reset))?
+                }
                 None => stdout.queue(Print(""))?,
             };
         };
