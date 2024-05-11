@@ -488,7 +488,6 @@ pub fn browse(
     terminal::disable_raw_mode()?;
 
     if let Some(selected) = selected {
-        clipboard.set_text(selected.clone())?;
         println!("{}", selected);
         println!("");
         print!("  ");
