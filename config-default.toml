@@ -1,9 +1,9 @@
 # You can provide a custom output format. Here's a multiline example
-# custom_output = """\
+# custom_output = ''' 
 # <div>
 #   <Icon id="{icon}" className="icon" />
 # </div>
-# """"
+# '''
 #
 # {icon} will be replaced with the icon identifier, including the prefix.
 custom_output = '<Icon icon="{icon}" />'
