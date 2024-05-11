@@ -13,7 +13,7 @@ use arboard::Clipboard;
 use chrono::{DateTime, TimeDelta, Utc};
 use crossterm::{
     cursor::{self, MoveTo},
-    event::{poll, read, Event, KeyCode, KeyModifiers},
+    event::{poll, read, Event, KeyCode},
     style::{Color, Print, SetBackgroundColor, SetForegroundColor},
     terminal::{self, size, Clear, ClearType},
     QueueableCommand,
@@ -31,6 +31,7 @@ enum Direction {
 
 struct Message {
     message: String,
+    color: Color,
     delete_at: DateTime<Utc>,
 }
 
@@ -245,6 +246,17 @@ pub fn browse(
                         let (p, q) = parse_search_string(&search_string)?;
                         query_results = query(&q, &p)?;
 
+                        if query_results.len() == 0 {
+                            messages.push(Message {
+                                message: "No icons matching search string.".to_string(),
+                                color: Color::Yellow,
+                                delete_at: chrono::Utc::now()
+                                    .checked_add_signed(TimeDelta::seconds(2))
+                                    .unwrap(),
+                            });
+                            search_mode = true;
+                        }
+
                         render_query(
                             &mut stdout,
                             &mut query_results,
@@ -307,16 +319,44 @@ pub fn browse(
                     }
                     KeyCode::Char('c') => {
                         let id = query_results[selected_index as usize].clone();
-                        clipboard.set_text(id)?;
+                        clipboard.set_text(id.clone())?;
 
                         messages.push(Message {
-                            message: "Copied to clipboard!".to_string(),
+                            message: format!("Copied '{}' to clipboard!", id),
+                            color: Color::Green,
                             delete_at: chrono::Utc::now()
                                 .checked_add_signed(TimeDelta::seconds(2))
                                 .unwrap(),
                         });
                     }
-                    KeyCode::Char('g') if event.modifiers != KeyModifiers::SHIFT => {
+                    KeyCode::Char('C') => {
+                        let id = query_results[selected_index as usize].clone();
+
+                        let config = read_config_file()?;
+
+                        match config.custom_output {
+                            Some(output) if !output.is_empty() => {
+                                clipboard.set_text(output.replace("{icon}", &id))?;
+                                messages.push(Message {
+                                    message: "Custom output copied to clipboard.".to_string(),
+                                    color: Color::Green,
+                                    delete_at: chrono::Utc::now()
+                                        .checked_add_signed(TimeDelta::seconds(2))
+                                        .unwrap(),
+                                });
+                            }
+                            _ => {
+                                messages.push(Message {
+                                    message: "No custom output defined.".to_string(),
+                                    color: Color::Yellow,
+                                    delete_at: chrono::Utc::now()
+                                        .checked_add_signed(TimeDelta::seconds(2))
+                                        .unwrap(),
+                                });
+                            }
+                        }
+                    }
+                    KeyCode::Char('g') => {
                         let current = query_results[selected_index as usize].clone();
 
                         let (collection_id, _) = current.split_once(":").unwrap();
@@ -326,6 +366,7 @@ pub fn browse(
 
                         messages.push(Message {
                             message: format!("Showing collection '{}'", collection_id),
+                            color: Color::Blue,
                             delete_at: chrono::Utc::now()
                                 .checked_add_signed(TimeDelta::seconds(2))
                                 .unwrap(),
@@ -448,7 +489,7 @@ pub fn browse(
         if !messages.is_empty() {
             match messages.last() {
                 Some(last_message) => {
-                    stdout.queue(SetForegroundColor(Color::Green))?;
+                    stdout.queue(SetForegroundColor(last_message.color))?;
                     stdout.queue(Print(&last_message.message))?;
                     stdout.queue(SetForegroundColor(Color::Reset))?
                 }
@@ -463,8 +504,6 @@ pub fn browse(
             stdout.queue(Print(format!("Enter search: {}", search_string)))?;
         } else if !query_results.is_empty() {
             stdout.queue(Print(query_results[selected_index as usize].clone()))?;
-        } else {
-            stdout.queue(Print(format!("No results found.")))?;
         }
 
         stdout.flush().unwrap();
