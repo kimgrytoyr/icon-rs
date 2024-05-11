@@ -13,7 +13,7 @@ use arboard::Clipboard;
 use chrono::{DateTime, TimeDelta, Utc};
 use crossterm::{
     cursor::{self, MoveTo},
-    event::{poll, read, Event, KeyCode},
+    event::{poll, read, Event, KeyCode, KeyModifiers},
     style::{Color, Print, SetBackgroundColor, SetForegroundColor},
     terminal::{self, size, Clear, ClearType},
     QueueableCommand,
@@ -313,6 +313,44 @@ pub fn browse(
                     }
                     KeyCode::Char(c) if search_mode => {
                         search_string.push(c);
+                    }
+                    KeyCode::Char(c) if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                        if c == 'n' {
+                            do_move(
+                                Direction::Down,
+                                &mut selected_index,
+                                &mut previously_selected_index,
+                                query_results.len() as u16,
+                                &cols,
+                            );
+                        }
+                        if c == 'p' {
+                            do_move(
+                                Direction::Up,
+                                &mut selected_index,
+                                &mut previously_selected_index,
+                                query_results.len() as u16,
+                                &cols,
+                            );
+                        }
+                        if c == 'f' {
+                            do_move(
+                                Direction::Right,
+                                &mut selected_index,
+                                &mut previously_selected_index,
+                                query_results.len() as u16,
+                                &cols,
+                            );
+                        }
+                        if c == 'b' {
+                            do_move(
+                                Direction::Left,
+                                &mut selected_index,
+                                &mut previously_selected_index,
+                                query_results.len() as u16,
+                                &cols,
+                            );
+                        }
                     }
                     KeyCode::Char('q') => {
                         quit = true;
