@@ -1,4 +1,5 @@
 use crate::enums::{Collection, IconCollection};
+use crate::parser;
 use log::info;
 use resvg::tiny_skia;
 use resvg::usvg::fontdb::Database;
@@ -287,11 +288,22 @@ pub fn query(
 ) -> Result<Vec<String>, Box<dyn Error>> {
     let icons = get_cached_icons()?;
 
+    let parsed_query = if let Some(query) = query {
+        Some(parser::parse(query).unwrap())
+    } else {
+        None
+    };
+
     let found: Vec<String> = icons
         .iter()
         .filter(|i| {
-            let matching = if let Some(query) = query {
-                i.contains(query)
+            let matching = if let Some(_query) = query {
+                if let Some(parsed_query) = &parsed_query {
+                    parser::match_query(i.to_string(), parsed_query.clone())
+                        .expect("query can be parsed")
+                } else {
+                    true
+                }
             } else {
                 true
             };

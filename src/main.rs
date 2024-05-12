@@ -13,6 +13,7 @@ mod cli;
 pub mod config;
 pub mod enums;
 pub mod files;
+mod parser;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::parse();
